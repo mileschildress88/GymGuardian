@@ -15,6 +15,12 @@ class Tower:
         self.deactivated = False
         self.deactivation_timer = 0
         
+        # Tower statistics tracking
+        self.enemies_killed = 0
+        self.damage_dealt = 0
+        self.shots_fired = 0
+        self.sell_button = None
+        
         # Tower properties based on type
         if tower_type == 'treadmill':
             self.base_damage = 10
@@ -47,9 +53,9 @@ class Tower:
             self.color = (255, 150, 0)
             self.projectile_type = 'trainer'
         elif tower_type == 'spin':
-            self.base_damage = 20
+            self.base_damage = 8
             self.base_range = 200
-            self.base_fire_rate = 100
+            self.base_fire_rate = 300
             self.color = (255, 0, 255)
             self.projectile_type = 'laser'
         
@@ -183,11 +189,13 @@ class Tower:
                 center_y,
                 closest_enemy,
                 self.damage,
-                {self.tower_type: True},
-                game
+                self.tower_type,
+                game,
+                self  # Pass the tower reference to the projectile
             )
             self.last_shot = pygame.time.get_ticks()
             self.can_shoot = False
+            self.shots_fired += 1
             return projectile
         
         return None

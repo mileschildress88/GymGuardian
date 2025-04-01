@@ -1,5 +1,6 @@
 import pygame
 import math
+import random
 from .towers import Tower
 from .enemies import Enemy
 from .powerups import PowerUp
@@ -26,6 +27,11 @@ class Game:
         self.font = pygame.font.Font(None, 36)
         self.font_small = pygame.font.Font(None, 24)
         self.tower_buttons = []  # Initialize tower buttons list
+        
+        # Tooltip variables
+        self.show_tooltip = False
+        self.tooltip_text = ""
+        self.tooltip_position = (0, 0)
         
         # Define game area and UI area
         self.ui_width = 250  # Width of the UI sidebar
@@ -64,48 +70,76 @@ class Game:
         self.last_spawn = 0
         self.spawning = True
 
-        # Initialize tower types
+        # Initialize tower types with descriptions
         self.tower_types = {
-            'treadmill': {'name': 'Treadmill', 'cost': 100, 'color': (100, 100, 100)},
-            'protein': {'name': 'Protein Shaker', 'cost': 200, 'color': (200, 100, 100)},
-            'yoga': {'name': 'Yoga Mat', 'cost': 300, 'color': (100, 200, 100)},
-            'kettlebell': {'name': 'Kettlebell', 'cost': 400, 'color': (150, 150, 150)},
-            'hiit': {'name': 'HIIT Station', 'cost': 500, 'color': (200, 50, 50)},
-            'spin': {'name': 'Spin Bike', 'cost': 1250, 'color': (100, 100, 200)}
+            'treadmill': {
+                'name': 'Treadmill', 
+                'cost': 150, 
+                'color': (100, 100, 100),
+                'description': 'Shoots projectiles that slow enemies down\nDamage: 10\nRange: 150\nFire Rate: 1.0s'
+            },
+            'protein': {
+                'name': 'Protein Shaker', 
+                'cost': 250, 
+                'color': (200, 100, 100),
+                'description': 'Launches protein shakes with splash damage\nDamage: 25\nRange: 120\nFire Rate: 1.5s'
+            },
+            'yoga': {
+                'name': 'Yoga Mat', 
+                'cost': 300, 
+                'color': (100, 200, 100),
+                'description': 'Long-range tower that slows enemies\nDamage: 40\nRange: 250\nFire Rate: 2.0s'
+            },
+            'kettlebell': {
+                'name': 'Kettlebell', 
+                'cost': 350, 
+                'color': (150, 150, 150),
+                'description': 'Drops heavy weights with splash damage\nDamage: 35\nRange: 100\nFire Rate: 2.0s'
+            },
+            'hiit': {
+                'name': 'HIIT Station', 
+                'cost': 450, 
+                'color': (200, 50, 50),
+                'description': 'Spawns trainers that chase enemies\nDamage: 15\nRange: 80\nFire Rate: 0.5s'
+            },
+            'spin': {
+                'name': 'Spin Bike', 
+                'cost': 800, 
+                'color': (100, 100, 200),
+                'description': 'Fires laser beams that pierce enemies\nDamage: 8\nRange: 200\nFire Rate: 0.3s'
+            }
         }
         
         # Create tower buttons
         self.create_tower_buttons()
 
     def create_tower_buttons(self):
-        tower_types = [
-            ('treadmill', 'Treadmill Turret', 100),
-            ('protein', 'Protein Cannon', 150),
-            ('yoga', 'Yoga Sniper', 200),
-            ('kettlebell', 'Kettlebell Dropper', 175),
-            ('hiit', 'HIIT Barracks', 250),
-            ('spin', 'Spin Class Laser', 300)
-        ]
+        # Calculate button dimensions
+        button_width = self.ui_width - 20  # 10px padding on each side
+        button_height = 50  # Taller buttons to fit icon and text
+        button_spacing = 5  # Space between buttons
         
-        button_width = self.ui_width - 20  # Leave some padding
-        button_height = 40  # Reduced height
-        spacing = 5  # Reduced spacing
-        start_x = self.game_width + 10  # Start from sidebar
-        start_y = 160  # Start below wave control
+        # Track vertical position for button placement
+        tower_y = 160  # Start below wave control button
         
-        for i, (tower_type, name, cost) in enumerate(tower_types):
+        # Create buttons for each tower type
+        for tower_type, tower_info in self.tower_types.items():
             button = pygame.Rect(
-                start_x,
-                start_y + i * (button_height + spacing),
+                self.game_width + 10,  # 10px padding from left
+                tower_y,
                 button_width,
                 button_height
             )
+            
             self.tower_buttons.append({
                 'rect': button,
                 'type': tower_type,
-                'name': name,
-                'cost': cost
+                'name': tower_info['name'],
+                'cost': tower_info['cost']
             })
+            
+            # Move down for next button
+            tower_y += button_height + button_spacing
 
     def initialize_game(self, selected_path):
         print(f"Initializing game with path of length {len(selected_path)}")
@@ -218,22 +252,118 @@ class Game:
             )
             self.screen.blit(wave_text, (wave_button.x + 5, wave_button.y + 10))
         
-        # Draw tower buttons
-        for button in self.tower_buttons:
-            # Draw button background
-            color = (60, 60, 60)
-            if button['type'] == self.selected_tower:
-                color = (80, 80, 80)
-            elif self.gold < button['cost']:
-                color = (40, 40, 40)
-            pygame.draw.rect(self.screen, color, button['rect'])
-            
-            # Draw tower name and cost
-            name_text = self.font_small.render(button['name'], True, (255, 255, 255))
-            cost_text = self.font_small.render(f"{button['cost']} gold", True, (255, 215, 0))
-            
-            self.screen.blit(name_text, (button['rect'].x + 10, button['rect'].y + 5))
-            self.screen.blit(cost_text, (button['rect'].x + 10, button['rect'].y + 20))
+        # If a tower is selected, show tower details panel instead of tower buttons
+        if self.selected_placed_tower:
+            self.draw_tower_details()
+        else:
+            # Draw tower buttons
+            for button in self.tower_buttons:
+                # Draw button background
+                color = (60, 60, 60)
+                if button['type'] == self.selected_tower:
+                    color = (80, 80, 80)
+                elif self.gold < button['cost']:
+                    color = (40, 40, 40)
+                pygame.draw.rect(self.screen, color, button['rect'])
+                pygame.draw.rect(self.screen, (255, 255, 255), button['rect'], 1)
+                
+                # Draw tower name and cost (align left)
+                name_text = self.font_small.render(button['name'], True, (255, 255, 255))
+                cost_text = self.font_small.render(f"{button['cost']} gold", True, (255, 215, 0))
+                
+                self.screen.blit(name_text, (button['rect'].x + 10, button['rect'].y + 5))
+                self.screen.blit(cost_text, (button['rect'].x + 10, button['rect'].y + 25))
+                
+                # Draw tower icon on the right side of the button (using Tower class drawing)
+                icon_size = 32  # Size of the icon
+                icon_x = button['rect'].right - icon_size - 5  # 5px padding from right
+                icon_y = button['rect'].y + (button['rect'].height - icon_size) // 2  # Center vertically
+                
+                # Create temporary Tower object to draw the icon
+                temp_tower = Tower(button['type'], icon_x, icon_y, icon_size)
+                temp_tower.draw(self.screen)
+        
+        # Draw tooltip if needed
+        self.draw_tooltip()
+
+    def draw_tower_details(self):
+        # Get the selected tower
+        tower = self.selected_placed_tower
+        
+        # Start position for tower details panel
+        panel_y = 160
+        panel_height = 300
+        
+        # Draw panel background
+        pygame.draw.rect(self.screen, (50, 50, 50),
+                      (self.game_width + 10, panel_y, self.ui_width - 20, panel_height))
+        pygame.draw.rect(self.screen, (100, 100, 100),
+                      (self.game_width + 10, panel_y, self.ui_width - 20, panel_height), 1)
+        
+        # Draw tower name header
+        tower_name = self.tower_types[tower.tower_type]['name']
+        name_text = self.font.render(tower_name, True, (255, 255, 255))
+        self.screen.blit(name_text, (self.game_width + 20, panel_y + 10))
+        
+        # Draw tower icon
+        icon_size = 64  # Larger icon for details view
+        icon_x = self.game_width + (self.ui_width - icon_size) // 2
+        icon_y = panel_y + 50
+        
+        # Use a temporary tower object for drawing
+        temp_tower = Tower(tower.tower_type, icon_x, icon_y, icon_size)
+        temp_tower.draw(self.screen)
+        
+        # Draw tower stats
+        stats_y = panel_y + 130
+        line_height = 25
+        
+        # Tower level/tier
+        level_text = self.font_small.render(f"Level: 1", True, (255, 255, 255))
+        self.screen.blit(level_text, (self.game_width + 20, stats_y))
+        
+        # Enemies killed
+        killed_text = self.font_small.render(f"Enemies killed: {tower.enemies_killed}", True, (255, 255, 255))
+        self.screen.blit(killed_text, (self.game_width + 20, stats_y + line_height))
+        
+        # Damage dealt
+        damage_text = self.font_small.render(f"Damage dealt: {tower.damage_dealt}", True, (255, 255, 255))
+        self.screen.blit(damage_text, (self.game_width + 20, stats_y + line_height * 2))
+        
+        # Tower damage stats
+        damage_stat = self.font_small.render(f"Damage: {tower.damage}", True, (255, 200, 200))
+        self.screen.blit(damage_stat, (self.game_width + 20, stats_y + line_height * 3))
+        
+        # Tower range
+        range_stat = self.font_small.render(f"Range: {tower.range}", True, (200, 200, 255))
+        self.screen.blit(range_stat, (self.game_width + 20, stats_y + line_height * 4))
+        
+        # Tower fire rate
+        fire_rate = 1000 / tower.fire_rate if tower.fire_rate > 0 else 0
+        fire_stat = self.font_small.render(f"Fire rate: {fire_rate:.1f}/s", True, (200, 255, 200))
+        self.screen.blit(fire_stat, (self.game_width + 20, stats_y + line_height * 5))
+        
+        # Draw sell button
+        sell_button_y = panel_y + panel_height - 40
+        sell_button = pygame.Rect(
+            self.game_width + 20,
+            sell_button_y,
+            self.ui_width - 40,
+            30
+        )
+        pygame.draw.rect(self.screen, (150, 50, 50), sell_button)
+        pygame.draw.rect(self.screen, (255, 255, 255), sell_button, 1)
+        
+        # Calculate sell value (50% of original cost)
+        tower_cost = self.tower_types[tower.tower_type]['cost']
+        sell_value = int(tower_cost * 0.5)
+        
+        sell_text = self.font_small.render(f"Sell for {sell_value} gold", True, (255, 255, 255))
+        sell_text_rect = sell_text.get_rect(center=sell_button.center)
+        self.screen.blit(sell_text, sell_text_rect)
+        
+        # Store the sell button in the tower for click detection
+        tower.sell_button = sell_button
 
     def draw(self):
         # Fill background with dark color
@@ -272,6 +402,27 @@ class Game:
             # Draw UI
             self.draw_ui()
         elif self.game_state == "game_over":
+            # Draw the game state behind the game over screen
+            # Draw game area background
+            pygame.draw.rect(self.screen, (40, 40, 40), 
+                           (0, 0, self.game_width, self.height))
+            
+            # Draw grid
+            for x in range(0, self.game_width, self.grid_size):
+                for y in range(0, self.height, self.grid_size):
+                    rect = pygame.Rect(x, y, self.grid_size, self.grid_size)
+                    pygame.draw.rect(self.screen, (0, 40, 0), rect)  # Dark green for placeable areas
+                    pygame.draw.rect(self.screen, (40, 40, 40), rect, 1)  # Grid lines
+            
+            # Draw path if it exists
+            if self.path:
+                self.draw_path()
+            
+            # Draw game objects
+            for tower in self.towers:
+                tower.draw(self.screen)
+            
+            # Draw game over screen
             self.menu.draw(self.screen, "game_over")
         
         # Update display
@@ -295,6 +446,12 @@ class Game:
         self.spawning = True
         self.active_power_ups = {}
         
+        # Spawn pattern variables
+        self.spawn_pattern = "normal"  # normal, cluster, rush
+        self.next_spawn_delay = 2000   # milliseconds
+        self.cluster_size = 0
+        self.current_cluster = 0
+        
         # Reset grid
         self.grid = [[0 for _ in range(self.grid_width)] 
                     for _ in range(self.grid_height)]
@@ -304,6 +461,56 @@ class Game:
             for x, y in self.path:
                 if 0 <= x < self.grid_width and 0 <= y < self.grid_height:
                     self.grid[y][x] = 2  # 2 represents path
+                    
+    def get_spawn_delay(self):
+        """Calculate a variable spawn delay based on wave and spawn pattern"""
+        if self.spawn_pattern == "normal":
+            # Normal pattern: consistent timing with slight variation
+            base_delay = max(2000 - (self.wave * 100), 1000)  # Decreases with wave number
+            return base_delay + random.randint(-200, 200)  # Small randomness
+            
+        elif self.spawn_pattern == "cluster":
+            # Cluster pattern: quick bursts with pauses between
+            if self.current_cluster < self.cluster_size:
+                self.current_cluster += 1
+                return random.randint(200, 400)  # Very quick spawn within cluster
+            else:
+                self.current_cluster = 0
+                return random.randint(2500, 3500)  # Longer pause between clusters
+                
+        elif self.spawn_pattern == "rush":
+            # Rush pattern: very quick spawns
+            return random.randint(300, 700)
+            
+        return 2000  # Default fallback
+    
+    def update_spawn_pattern(self):
+        """Determine spawn pattern for next set of enemies"""
+        # Set cluster size based on wave
+        self.cluster_size = min(2 + self.wave // 2, 5)  # 2-5 enemies per cluster
+        
+        # Randomize spawn pattern with increasing probability of special patterns
+        pattern_roll = random.random()
+        
+        if self.wave <= 2:
+            # Waves 1-2: always normal
+            self.spawn_pattern = "normal"
+        elif self.wave <= 5:
+            # Waves 3-5: 70% normal, 30% cluster
+            if pattern_roll < 0.7:
+                self.spawn_pattern = "normal"
+            else:
+                self.spawn_pattern = "cluster"
+        else:
+            # Waves 6+: 50% normal, 40% cluster, 10% rush
+            if pattern_roll < 0.5:
+                self.spawn_pattern = "normal"
+            elif pattern_roll < 0.9:
+                self.spawn_pattern = "cluster"
+            else:
+                self.spawn_pattern = "rush"
+                
+        print(f"Wave {self.wave} using {self.spawn_pattern} spawn pattern")
 
     def spawn_enemy(self):
         if not self.path_points:  # Safety check
@@ -349,6 +556,8 @@ class Game:
                 print(f"Enemy reached end. Lives: {self.lives}")
                 if self.lives <= 0:
                     self.game_over = True
+                    self.game_state = "game_over"  # Change game state to game_over
+                    print("Game Over!")
         
         # Update towers
         for tower in self.towers:
@@ -367,9 +576,16 @@ class Game:
         # Update wave spawning
         if self.wave_in_progress:
             if self.enemies_spawned < self.total_enemies_this_wave:
-                if current_time - self.spawn_timer >= 2000:  # Spawn every 2 seconds
+                if self.enemies_spawned == 0:
+                    # First enemy spawn - set pattern for this wave
+                    self.update_spawn_pattern()
                     self.spawn_enemy()
                     self.spawn_timer = current_time
+                    self.next_spawn_delay = self.get_spawn_delay()
+                elif current_time - self.spawn_timer >= self.next_spawn_delay:
+                    self.spawn_enemy()
+                    self.spawn_timer = current_time
+                    self.next_spawn_delay = self.get_spawn_delay()
             elif len(self.enemies) == 0:
                 self.wave_in_progress = False
                 self.wave += 1
@@ -391,13 +607,24 @@ class Game:
                         self.game_state = "playing"
                 elif self.game_state == "game_over":
                     action = self.menu.handle_click(event.pos, "game_over")
-                    if action == "restart":
+                    if action == "retry":
+                        # Reset the game with the same map
+                        self.reset_game()
+                        self.game_state = "playing"
+                    elif action == "change_map":
+                        # Go back to map selection
                         self.game_state = "map_select"
-                    elif action == "quit":
-                        return "quit"
+                    elif action == "exit":
+                        # Return to main menu
+                        self.game_state = "home"
                 elif self.game_state == "playing":
                     # Check if click is in game area
                     if event.pos[0] < self.game_width:
+                        # Check if sell button is clicked when a tower is selected
+                        if self.selected_placed_tower and hasattr(self.selected_placed_tower, 'sell_button') and self.selected_placed_tower.sell_button.collidepoint(event.pos):
+                            self.sell_tower(self.selected_placed_tower)
+                            return
+                            
                         # Default to deselecting current tower
                         if self.selected_placed_tower:
                             self.selected_placed_tower.selected = False
@@ -444,21 +671,27 @@ class Game:
                             
                             # If no tower was clicked, the first deselection at the start will handle this
                     else:
-                        # Check tower button clicks
-                        for button in self.tower_buttons:
-                            if button['rect'].collidepoint(event.pos):
-                                # Deselect any currently selected tower
-                                if self.selected_placed_tower:
-                                    self.selected_placed_tower.selected = False
-                                    self.selected_placed_tower = None
-                                    
-                                self.selected_tower = button['type']
-                                # Deselect all towers
-                                for tower in self.towers:
-                                    tower.selected = False
-                                break
+                        # Check if we need to handle sell button click
+                        if self.selected_placed_tower and hasattr(self.selected_placed_tower, 'sell_button') and self.selected_placed_tower.sell_button.collidepoint(event.pos):
+                            self.sell_tower(self.selected_placed_tower)
+                            return
+                            
+                        # Check tower button clicks - only if no tower is selected
+                        if not self.selected_placed_tower:
+                            for button in self.tower_buttons:
+                                if button['rect'].collidepoint(event.pos):
+                                    # Deselect any currently selected tower
+                                    if self.selected_placed_tower:
+                                        self.selected_placed_tower.selected = False
+                                        self.selected_placed_tower = None
+                                        
+                                    self.selected_tower = button['type']
+                                    # Deselect all towers
+                                    for tower in self.towers:
+                                        tower.selected = False
+                                    break
                         
-                        # Check wave button click
+                        # Check wave button click - always available
                         wave_button = pygame.Rect(self.game_width + 10, 110, self.ui_width - 20, 40)
                         if wave_button.collidepoint(event.pos) and not self.wave_in_progress:
                             self.wave_in_progress = True
@@ -481,6 +714,91 @@ class Game:
                     self.enemies_spawned = 0
                     self.total_enemies_this_wave = self.wave * self.enemies_per_wave
                     print(f"Starting wave {self.wave} with {self.total_enemies_this_wave} enemies")
+            elif event.key == pygame.K_ESCAPE and self.game_state == "playing":
+                # Pressing ESC deselects the current tower
+                self.selected_tower = None
+                if self.selected_placed_tower:
+                    self.selected_placed_tower.selected = False
+                    self.selected_placed_tower = None
+        
+        elif event.type == pygame.MOUSEMOTION:
+            # Handle tooltips on mouse movement
+            self.update_tooltip(event.pos)
+            
+    def sell_tower(self, tower):
+        # Calculate sell value (50% of original cost)
+        tower_cost = self.tower_types[tower.tower_type]['cost']
+        sell_value = int(tower_cost * 0.5)
+        
+        # Add the value to player's gold
+        self.gold += sell_value
+        
+        # Find the tower's grid position
+        grid_x = tower.x // self.grid_size
+        grid_y = tower.y // self.grid_size
+        
+        # Update the grid to show the space is available
+        self.grid[grid_y][grid_x] = 0
+        
+        # Remove the tower from the list
+        self.towers.remove(tower)
+        
+        # Clear selection
+        self.selected_placed_tower = None
+        
+        print(f"Tower sold for {sell_value} gold")
+
+    def update_tooltip(self, mouse_pos):
+        # Reset tooltip state
+        self.show_tooltip = False
+        
+        # Only show tooltips when playing
+        if self.game_state != "playing":
+            return
+            
+        # Check if mouse is over a tower button
+        for button in self.tower_buttons:
+            if button['rect'].collidepoint(mouse_pos):
+                self.show_tooltip = True
+                self.tooltip_text = self.tower_types[button['type']]['description']
+                self.tooltip_position = (mouse_pos[0] + 15, mouse_pos[1] + 15)  # Offset slightly from cursor
+                break
+    
+    def draw_tooltip(self):
+        if not self.show_tooltip:
+            return
+            
+        # Split tooltip text into lines
+        lines = self.tooltip_text.split('\n')
+        
+        # Calculate tooltip dimensions
+        line_height = 20
+        max_line_width = max(self.font_small.size(line)[0] for line in lines)
+        tooltip_width = max_line_width + 20  # 10px padding on each side
+        tooltip_height = len(lines) * line_height + 20  # 10px padding on top and bottom
+        
+        # Adjust position if tooltip would go off screen
+        x, y = self.tooltip_position
+        if x + tooltip_width > self.width:
+            x = self.width - tooltip_width - 5
+        if y + tooltip_height > self.height:
+            y = self.height - tooltip_height - 5
+            
+        # Draw tooltip background with semi-transparency
+        tooltip_surface = pygame.Surface((tooltip_width, tooltip_height), pygame.SRCALPHA)
+        tooltip_surface.fill((0, 0, 0, 200))  # Black with 80% opacity
+        
+        # Draw text
+        for i, line in enumerate(lines):
+            text_surface = self.font_small.render(line, True, (255, 255, 255))
+            tooltip_surface.blit(text_surface, (10, 10 + i * line_height))
+            
+        # Draw border
+        pygame.draw.rect(tooltip_surface, (255, 255, 255), 
+                        (0, 0, tooltip_width, tooltip_height), 1)
+            
+        # Draw tooltip on screen
+        self.screen.blit(tooltip_surface, (x, y))
 
     def run(self):
         running = True
@@ -498,12 +816,13 @@ class Game:
             
             # Update game state
             if self.game_state == "playing":
-                # Update game logic
                 self.update()
-                
-                # Draw everything
-                self.screen.fill((0, 0, 0))  # Clear screen
-                self.draw()
-                
-                # Control game speed
-                clock.tick(60)  # 60 FPS 
+            
+            # Draw everything
+            self.screen.fill((0, 0, 0))  # Clear screen
+            self.draw()
+            
+            # Control game speed
+            clock.tick(60)  # 60 FPS
+        
+        return "quit" 

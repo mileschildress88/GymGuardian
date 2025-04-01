@@ -13,6 +13,7 @@ class Menu:
         self.BLACK = (0, 0, 0)
         self.GREEN = (0, 255, 0)
         self.RED = (255, 0, 0)
+        self.BLUE = (0, 100, 255)
         
         # Button dimensions
         self.button_width = 200
@@ -33,9 +34,24 @@ class Menu:
             self.button_height
         )
         
-        self.restart_button = pygame.Rect(
+        # Game over screen buttons
+        self.retry_button = pygame.Rect(
             self.width//2 - self.button_width//2,
-            self.height//2,
+            self.height//2 + 50,
+            self.button_width,
+            self.button_height
+        )
+        
+        self.change_map_button = pygame.Rect(
+            self.width//2 - self.button_width//2,
+            self.height//2 + 120,
+            self.button_width,
+            self.button_height
+        )
+        
+        self.exit_button = pygame.Rect(
+            self.width//2 - self.button_width//2,
+            self.height//2 + 190,
             self.button_width,
             self.button_height
         )
@@ -88,11 +104,11 @@ class Menu:
             instruction_text = self.font_small.render(text, True, self.WHITE)
             self.screen.blit(instruction_text, (50, self.height - 200 + i * 30))
 
-    def draw_game_over_screen(self, wave, gold):
+    def draw_game_over_screen(self):
         # Draw semi-transparent background
         overlay = pygame.Surface((self.width, self.height))
         overlay.fill(self.BLACK)
-        overlay.set_alpha(128)
+        overlay.set_alpha(200)  # More opaque
         self.screen.blit(overlay, (0, 0))
         
         # Draw game over text
@@ -100,22 +116,23 @@ class Menu:
         game_over_rect = game_over.get_rect(center=(self.width//2, self.height//3))
         self.screen.blit(game_over, game_over_rect)
         
-        # Draw stats
-        stats = [
-            f"Wave Reached: {wave}",
-            f"Gold Earned: {gold}"
-        ]
+        # Draw buttons
+        pygame.draw.rect(self.screen, self.GREEN, self.retry_button)
+        pygame.draw.rect(self.screen, self.BLUE, self.change_map_button)
+        pygame.draw.rect(self.screen, self.RED, self.exit_button)
         
-        for i, text in enumerate(stats):
-            stat_text = self.font_medium.render(text, True, self.WHITE)
-            stat_rect = stat_text.get_rect(center=(self.width//2, self.height//2 + i * 40))
-            self.screen.blit(stat_text, stat_rect)
+        # Draw button text
+        retry_text = self.font_small.render("Retry", True, self.BLACK)
+        change_map_text = self.font_small.render("Change Map", True, self.BLACK)
+        exit_text = self.font_small.render("Exit to Menu", True, self.BLACK)
         
-        # Draw restart button
-        pygame.draw.rect(self.screen, self.GREEN, self.restart_button)
-        restart_text = self.font_small.render("Play Again", True, self.BLACK)
-        restart_text_rect = restart_text.get_rect(center=self.restart_button.center)
-        self.screen.blit(restart_text, restart_text_rect)
+        retry_text_rect = retry_text.get_rect(center=self.retry_button.center)
+        change_map_text_rect = change_map_text.get_rect(center=self.change_map_button.center)
+        exit_text_rect = exit_text.get_rect(center=self.exit_button.center)
+        
+        self.screen.blit(retry_text, retry_text_rect)
+        self.screen.blit(change_map_text, change_map_text_rect)
+        self.screen.blit(exit_text, exit_text_rect)
 
     def handle_click(self, pos, screen_type):
         if screen_type == "home":
@@ -124,8 +141,10 @@ class Menu:
             elif self.quit_button.collidepoint(pos):
                 return "quit"
         elif screen_type == "game_over":
-            if self.restart_button.collidepoint(pos):
-                return "restart"
-            elif self.quit_button.collidepoint(pos):
-                return "quit"
+            if self.retry_button.collidepoint(pos):
+                return "retry"
+            elif self.change_map_button.collidepoint(pos):
+                return "change_map"
+            elif self.exit_button.collidepoint(pos):
+                return "exit"
         return None 

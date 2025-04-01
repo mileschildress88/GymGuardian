@@ -50,6 +50,21 @@ class Enemy:
         return self.health > 0 and not self.reached_end
         
     def update(self):
+        # Update effects
+        current_time = pygame.time.get_ticks()
+        
+        # Check for expired effects
+        expired_effects = []
+        for effect_type, effect_data in self.effects.items():
+            if current_time >= effect_data.get('end_time', 0):
+                expired_effects.append(effect_type)
+                
+        # Remove expired effects
+        for effect_type in expired_effects:
+            if effect_type == 'slow':
+                self.speed = self.base_speed  # Reset speed
+            del self.effects[effect_type]
+            
         if not self.path_points or self.current_point >= len(self.path_points) - 1:
             self.reached_end = True
             return
@@ -123,4 +138,17 @@ class Enemy:
         self.health -= amount
         if self.health <= 0:
             return True
-        return False 
+        return False
+        
+    def apply_effects(self, effects):
+        current_time = pygame.time.get_ticks()
+        
+        # Apply slow effect
+        if 'slow' in effects:
+            slow_data = effects['slow']
+            self.effects['slow'] = {
+                'amount': slow_data['amount'],
+                'end_time': current_time + slow_data['duration']
+            }
+            # Apply the slow effect immediately
+            self.speed = self.base_speed * (1 - slow_data['amount']) 
