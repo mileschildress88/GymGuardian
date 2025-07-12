@@ -110,6 +110,38 @@ class Game:
             }
         }
         
+        # Load tower images
+        self.tower_images = {
+            'treadmill': pygame.image.load('src/Images/TreadMill.png').convert_alpha(),
+            'protein': pygame.image.load('src/Images/ProteinShake.png').convert_alpha(),
+            'yoga': pygame.image.load('src/Images/YogaMat.png').convert_alpha(),
+            'kettlebell': pygame.image.load('src/Images/KettelBell.png').convert_alpha(),
+            'hiit': pygame.image.load('src/Images/HIITStation.png').convert_alpha(),
+            'spin': pygame.image.load('src/Images/SpinBike.png').convert_alpha()
+        }
+        
+        # Scale tower images to fit button size
+        for tower_type in self.tower_images:
+            self.tower_images[tower_type] = pygame.transform.scale(
+                self.tower_images[tower_type],
+                (32, 32)
+            )
+        
+        # Load enemy images
+        self.tower_images.update({
+            'normal_enemy': pygame.image.load('src/Images/NormalEnemy.png').convert_alpha(),
+            'fast_enemy': pygame.image.load('src/Images/FastEnemy.png').convert_alpha(),
+            'tank_enemy': pygame.image.load('src/Images/TankEnemy.png').convert_alpha(),
+            'boss_enemy': pygame.image.load('src/Images/BossEnemy.png').convert_alpha()
+        })
+        
+        # Scale enemy images
+        for img_key in ['normal_enemy', 'fast_enemy', 'tank_enemy', 'boss_enemy']:
+            self.tower_images[img_key] = pygame.transform.scale(
+                self.tower_images[img_key],
+                (24, 24)
+            )
+        
         # Create tower buttons
         self.create_tower_buttons()
 
@@ -274,14 +306,21 @@ class Game:
                 self.screen.blit(name_text, (button['rect'].x + 10, button['rect'].y + 5))
                 self.screen.blit(cost_text, (button['rect'].x + 10, button['rect'].y + 25))
                 
+                # Draw tower icon on the right side of the button
+                tower_img = self.tower_images[button['type']]
+                img_rect = tower_img.get_rect()
+                img_rect.right = button['rect'].right - 5
+                img_rect.centery = button['rect'].centery
+                self.screen.blit(tower_img, img_rect)
+                
                 # Draw tower icon on the right side of the button (using Tower class drawing)
-                icon_size = 32  # Size of the icon
-                icon_x = button['rect'].right - icon_size - 5  # 5px padding from right
-                icon_y = button['rect'].y + (button['rect'].height - icon_size) // 2  # Center vertically
+                # icon_size = 32  # Size of the icon
+                # icon_x = button['rect'].right - icon_size - 5  # 5px padding from right
+                # icon_y = button['rect'].y + (button['rect'].height - icon_size) // 2  # Center vertically
                 
                 # Create temporary Tower object to draw the icon
-                temp_tower = Tower(button['type'], icon_x, icon_y, icon_size)
-                temp_tower.draw(self.screen)
+                # temp_tower = Tower(button['type'], icon_x, icon_y, icon_size)
+                # temp_tower.draw(self.screen)
         
         # Draw tooltip if needed
         self.draw_tooltip()
@@ -290,9 +329,9 @@ class Game:
         # Get the selected tower
         tower = self.selected_placed_tower
         
-        # Start position for tower details panel
+        # Start position for tower details panel - extend height to fit all content
         panel_y = 160
-        panel_height = 300
+        panel_height = 350  # Increased from 300 to 350
         
         # Draw panel background
         pygame.draw.rect(self.screen, (50, 50, 50),
@@ -312,7 +351,7 @@ class Game:
         
         # Use a temporary tower object for drawing
         temp_tower = Tower(tower.tower_type, icon_x, icon_y, icon_size)
-        temp_tower.draw(self.screen)
+        temp_tower.draw(self.screen, self.tower_images)
         
         # Draw tower stats
         stats_y = panel_y + 130
@@ -338,13 +377,13 @@ class Game:
         range_stat = self.font_small.render(f"Range: {tower.range}", True, (200, 200, 255))
         self.screen.blit(range_stat, (self.game_width + 20, stats_y + line_height * 4))
         
-        # Tower fire rate
+        # Tower fire rate - moved down to avoid sell button overlap
         fire_rate = 1000 / tower.fire_rate if tower.fire_rate > 0 else 0
         fire_stat = self.font_small.render(f"Fire rate: {fire_rate:.1f}/s", True, (200, 255, 200))
         self.screen.blit(fire_stat, (self.game_width + 20, stats_y + line_height * 5))
         
-        # Draw sell button
-        sell_button_y = panel_y + panel_height - 40
+        # Draw sell button - moved lower to avoid overlapping with fire rate text
+        sell_button_y = panel_y + panel_height - 50  # Moved from -40 to -50
         sell_button = pygame.Rect(
             self.game_width + 20,
             sell_button_y,
@@ -391,10 +430,10 @@ class Game:
             
             # Draw game objects
             for tower in self.towers:
-                tower.draw(self.screen)
+                tower.draw(self.screen, self.tower_images)
             
             for enemy in self.enemies:
-                enemy.draw(self.screen)
+                enemy.draw(self.screen, self.tower_images)
             
             for projectile in self.projectiles:
                 projectile.draw(self.screen)
@@ -749,23 +788,33 @@ class Game:
         print(f"Tower sold for {sell_value} gold")
 
     def update_tooltip(self, mouse_pos):
-        # Reset tooltip state
-        self.show_tooltip = False
-        
-        # Only show tooltips when playing
-        if self.game_state != "playing":
+        # Disable tooltips when a tower is selected to prevent overlay issues
+        if self.selected_placed_tower:
+            self.show_tooltip = False
             return
             
-        # Check if mouse is over a tower button
-        for button in self.tower_buttons:
-            if button['rect'].collidepoint(mouse_pos):
-                self.show_tooltip = True
-                self.tooltip_text = self.tower_types[button['type']]['description']
-                self.tooltip_position = (mouse_pos[0] + 15, mouse_pos[1] + 15)  # Offset slightly from cursor
-                break
-    
+        # Only show tooltips when no tower is selected
+        if not self.selected_placed_tower:
+            # Check if mouse is over tower buttons
+            for button in self.tower_buttons:
+                if button['rect'].collidepoint(mouse_pos):
+                    self.show_tooltip = True
+                    self.tooltip_text = self.tower_types[button['type']]['description']
+                    self.tooltip_position = mouse_pos
+                    return
+            
+            # Check if mouse is over power-up buttons
+            for powerup in self.powerups:
+                if powerup['rect'].collidepoint(mouse_pos):
+                    self.show_tooltip = True
+                    self.tooltip_text = powerup['description']
+                    self.tooltip_position = mouse_pos
+                    return
+        
+        self.show_tooltip = False
+
     def draw_tooltip(self):
-        if not self.show_tooltip:
+        if not self.show_tooltip or self.selected_placed_tower:
             return
             
         # Split tooltip text into lines

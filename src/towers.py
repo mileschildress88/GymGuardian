@@ -233,77 +233,21 @@ class Tower:
         self.deactivated = True
         self.deactivation_timer = pygame.time.get_ticks() + duration
 
-    def draw(self, screen):
-        # Draw the tower base (filling the entire tile)
-        tower_rect = pygame.Rect(self.x, self.y, self.grid_size, self.grid_size)
-        pygame.draw.rect(screen, self.color, tower_rect)
-        
-        # Calculate center points
-        center_x = self.x + self.grid_size // 2
-        center_y = self.y + self.grid_size // 2
-        
-        # Draw tower details based on type, scaled to grid size
-        if self.tower_type == 'treadmill':
-            # Draw treadmill belt
-            belt_width = int(self.grid_size * 0.8)
-            belt_height = int(self.grid_size * 0.4)
-            belt_x = self.x + (self.grid_size - belt_width) // 2
-            belt_y = self.y + (self.grid_size - belt_height) // 2
-            pygame.draw.rect(screen, (50, 50, 150), 
-                           (belt_x, belt_y, belt_width, belt_height))
-            
-        elif self.tower_type == 'protein':
-            # Draw protein shaker
-            shaker_points = [
-                (center_x, self.y + self.grid_size * 0.2),
-                (self.x + self.grid_size * 0.8, self.y + self.grid_size * 0.8),
-                (self.x + self.grid_size * 0.2, self.y + self.grid_size * 0.8)
-            ]
-            pygame.draw.polygon(screen, (200, 50, 50), shaker_points)
-            
-        elif self.tower_type == 'yoga':
-            # Draw yoga mat
-            mat_size = int(self.grid_size * 0.7)
-            mat_x = self.x + (self.grid_size - mat_size) // 2
-            mat_y = self.y + (self.grid_size - mat_size) // 2
-            pygame.draw.ellipse(screen, (150, 150, 200),
-                              (mat_x, mat_y, mat_size, mat_size))
-            
-        elif self.tower_type == 'kettlebell':
-            # Draw kettlebell
-            bell_radius = int(self.grid_size * 0.3)
-            handle_width = int(self.grid_size * 0.2)
-            handle_height = int(self.grid_size * 0.2)
-            pygame.draw.circle(screen, (50, 50, 50),
-                             (center_x, center_y), bell_radius)
-            pygame.draw.rect(screen, (50, 50, 50),
-                           (center_x - handle_width//2,
-                            self.y + self.grid_size * 0.2,
-                            handle_width, handle_height))
-            
-        elif self.tower_type == 'hiit':
-            # Draw HIIT station
-            station_size = int(self.grid_size * 0.7)
-            station_x = self.x + (self.grid_size - station_size) // 2
-            station_y = self.y + (self.grid_size - station_size) // 2
-            pygame.draw.rect(screen, (200, 100, 0),
-                           (station_x, station_y,
-                            station_size, station_size))
-            
-        elif self.tower_type == 'spin':
-            # Draw spin bike
-            bike_size = int(self.grid_size * 0.7)
-            bike_x = self.x + (self.grid_size - bike_size) // 2
-            bike_y = self.y + (self.grid_size - bike_size) // 2
-            pygame.draw.ellipse(screen, (200, 0, 200),
-                              (bike_x, bike_y,
-                               bike_size, bike_size))
+    def draw(self, screen, images=None):
+        # Draw the tower image if images dict is provided
+        if images is not None and self.tower_type in images:
+            screen.blit(images[self.tower_type], (self.x, self.y))
+        else:
+            # Fallback: draw a colored rectangle
+            tower_rect = pygame.Rect(self.x, self.y, self.grid_size, self.grid_size)
+            pygame.draw.rect(screen, self.color, tower_rect)
         
         # Draw selection highlight and range indicator
         if self.selected:
-            pygame.draw.rect(screen, (255, 255, 255), tower_rect, 2)
+            highlight_rect = pygame.Rect(self.x, self.y, self.grid_size, self.grid_size)
+            pygame.draw.rect(screen, (255, 255, 255), highlight_rect, 2)
             pygame.draw.circle(screen, (255, 255, 255), 
-                             (center_x, center_y), 
+                             (self.x + self.grid_size//2, self.y + self.grid_size//2), 
                              self.range, 1)
 
     def upgrade(self):

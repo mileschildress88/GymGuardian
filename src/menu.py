@@ -93,11 +93,12 @@ class Menu:
         # Draw instructions
         instructions = [
             "Controls:",
-            "Left Click: Place/Select towers",
-            "Right Click: Cancel tower placement",
-            "Space: Start/Pause wave",
+            "Left Click: Select/Place towers",
+            "Right Click: Deselect towers",
+            "Space: Start next wave",
             "1-6: Select tower types",
-            "Q,W,E,R: Activate power-ups"
+            "S: Sell selected tower",
+            "ESC: Pause game"
         ]
         
         for i, text in enumerate(instructions):

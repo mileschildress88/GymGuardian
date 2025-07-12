@@ -3,7 +3,7 @@ import math
 import random
 
 class Enemy:
-    def __init__(self, x, y, path_points, enemy_type='normal'):
+    def __init__(self, x, y, path_points, enemy_type='normal', game=None):
         self.x = float(x)
         self.y = float(y)
         self.path_points = path_points
@@ -11,6 +11,7 @@ class Enemy:
         self.enemy_type = enemy_type
         self.effects = {}
         self.reached_end = False
+        self.game = game
         
         # Set properties based on enemy type
         if enemy_type == 'normal':
@@ -87,52 +88,29 @@ class Enemy:
             self.x += (dx / distance) * self.speed
             self.y += (dy / distance) * self.speed
     
-    def draw(self, screen):
-        # Draw enemy body with type-specific details
-        pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), self.radius)
-        
-        # Add visual indicators for different enemy types
-        if self.enemy_type == 'fast':
-            # Draw speed lines
-            pygame.draw.line(screen, self.color,
-                           (self.x - self.radius - 5, self.y),
-                           (self.x - self.radius, self.y), 3)
-            pygame.draw.line(screen, self.color,
-                           (self.x - self.radius - 8, self.y),
-                           (self.x - self.radius - 3, self.y), 2)
-        elif self.enemy_type == 'tank':
-            # Draw armor outline
-            pygame.draw.circle(screen, (150, 150, 150),
-                             (int(self.x), int(self.y)), self.radius + 2, 2)
-        elif self.enemy_type == 'boss':
-            # Draw crown
-            points = [
-                (self.x - 10, self.y - self.radius - 5),
-                (self.x, self.y - self.radius - 12),
-                (self.x + 10, self.y - self.radius - 5),
-                (self.x + 8, self.y - self.radius),
-                (self.x - 8, self.y - self.radius)
-            ]
-            pygame.draw.polygon(screen, (255, 215, 0), points)
+    def draw(self, screen, images=None):
+        # Draw enemy image if images dict is provided
+        if images is not None and f"{self.enemy_type}_enemy" in images:
+            enemy_img = images[f"{self.enemy_type}_enemy"]
+            img_rect = enemy_img.get_rect(center=(int(self.x), int(self.y)))
+            screen.blit(enemy_img, img_rect)
+        else:
+            # Fallback: draw a colored circle
+            pygame.draw.circle(screen, (200, 0, 0), (int(self.x), int(self.y)), self.radius)
         
         # Draw health bar
         health_bar_length = 30
-        health_bar_height = 5
         health_ratio = self.health / self.max_health
         
-        # Background (red)
         pygame.draw.rect(screen, (200, 0, 0),
                         (self.x - health_bar_length/2,
                          self.y - self.radius - 10,
-                         health_bar_length,
-                         health_bar_height))
+                         health_bar_length, 5))
         
-        # Foreground (green)
         pygame.draw.rect(screen, (0, 200, 0),
                         (self.x - health_bar_length/2,
                          self.y - self.radius - 10,
-                         health_bar_length * health_ratio,
-                         health_bar_height))
+                         health_bar_length * health_ratio, 5))
     
     def take_damage(self, amount):
         self.health -= amount
